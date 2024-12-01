@@ -114,6 +114,7 @@ private:
 	VkRenderPass renderPass;
 	VkPipelineLayout pipelineLayout;
 	VkPipeline graphicsPipeline;
+	std::vector<VkFramebuffer> swapchainFramebuffers;
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 		VkDebugUtilsMessageSeverityFlagBitsEXT           messageSeverity,
@@ -129,6 +130,7 @@ private:
 		glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 		window = glfwCreateWindow(WIDTH, HEIGHT, "Hello world", nullptr, nullptr);
 	}
+
 	void initVulkan() {
 		createInstance();
 		setupDebugMessenger();
@@ -139,6 +141,33 @@ private:
 		createImageViews();
 		createRenderPass();
 		createGraphicsPipeline();
+		createFramebuffers();
+	}
+
+	void createFramebuffers() {
+		swapchainFramebuffers.resize(swapchainImageViews.size());
+		for (size_t i = 0; i < swapchainImageViews.size(); ++i) {
+			// TODO, test if we can just directly reference one VkImageView instead of this
+			VkImageView attachments[] = {
+				swapchainImageViews[i]
+			};
+			VkFramebufferCreateInfo framebufferInfo{};
+			framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+			framebufferInfo.renderPass = renderPass;
+			framebufferInfo.attachmentCount = 1;
+			framebufferInfo.pAttachments = attachments;
+			framebufferInfo.width = swapchainExtent.width;
+			framebufferInfo.height = swapchainExtent.height;
+			framebufferInfo.layers = 1;
+
+			if (vkCreateFramebuffer(
+				device,
+				&framebufferInfo,
+				nullptr,
+				&swapchainFramebuffers[i]) != VK_SUCCESS) {
+				throw std::runtime_error("Failed to create framebuffer");
+			}
+		}
 	}
 
 	void createRenderPass() {
@@ -571,6 +600,9 @@ private:
 	}
 
 	void cleanup() {
+		for (auto framebuffer : swapchainFramebuffers) {
+			vkDestroyFramebuffer(device, framebuffer, nullptr);
+		}
 		vkDestroyPipeline(device, graphicsPipeline, nullptr);
 		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 		vkDestroyRenderPass(device, renderPass, nullptr);
