@@ -153,6 +153,9 @@ private:
 	void frameBufferResizeCallback(GLFWwindow* window, int width, int height)
 	{
 		framebufferResized = true;
+		// First call recreates swapchain, second call performs render
+		drawFrame();
+		drawFrame();
 	}
 	
 	void initVulkan() {
@@ -596,6 +599,10 @@ private:
 		glfwGetFramebufferSize(window, &width, &height);
 		while (width == 0 || height == 0)
 		{
+			if (glfwWindowShouldClose(window))
+			{
+				return;
+			}
 			glfwGetFramebufferSize(window, &width, &height);
 			glfwWaitEvents();
 		}
