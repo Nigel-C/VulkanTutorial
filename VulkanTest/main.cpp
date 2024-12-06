@@ -154,8 +154,11 @@ private:
 	{
 		framebufferResized = true;
 		// First call recreates swapchain, second call performs render
-		drawFrame();
-		drawFrame();
+		if (width != 0 && height != 0)
+		{
+			drawFrame();
+			drawFrame();
+		}
 	}
 	
 	void initVulkan() {
@@ -592,18 +595,22 @@ private:
 		swapchainExtent = extent;
 	}
 
-	void recreateSwapChain()
+	[[nodiscard]] bool isWindowSizeValid() const
 	{
 		int width = 0;
 		int height = 0;
 		glfwGetFramebufferSize(window, &width, &height);
-		while (width == 0 || height == 0)
+		return width != 0 && height != 0;
+	}
+
+	void recreateSwapChain()
+	{
+		while (!isWindowSizeValid())
 		{
 			if (glfwWindowShouldClose(window))
 			{
 				return;
 			}
-			glfwGetFramebufferSize(window, &width, &height);
 			glfwWaitEvents();
 		}
 		vkDeviceWaitIdle(device);
