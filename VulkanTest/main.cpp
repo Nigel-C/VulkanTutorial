@@ -189,6 +189,7 @@ private:
 
 	VkImage textureImage;
 	VkDeviceMemory textureImageMemory;
+	VkImageView textureImageView;
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 		VkDebugUtilsMessageSeverityFlagBitsEXT           messageSeverity,
@@ -776,15 +777,12 @@ private:
 	void createFramebuffers() {
 		swapchainFramebuffers.resize(swapchainImageViews.size());
 		for (size_t i = 0; i < swapchainImageViews.size(); ++i) {
-			// TODO, test if we can just directly reference one VkImageView instead of this
-			VkImageView attachments[] = {
-				swapchainImageViews[i]
-			};
+			VkImageView attachment = swapchainImageViews[i];
 			VkFramebufferCreateInfo framebufferInfo{};
 			framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 			framebufferInfo.renderPass = renderPass;
 			framebufferInfo.attachmentCount = 1;
-			framebufferInfo.pAttachments = attachments;
+			framebufferInfo.pAttachments = &attachment;
 			framebufferInfo.width = swapchainExtent.width;
 			framebufferInfo.height = swapchainExtent.height;
 			framebufferInfo.layers = 1;
