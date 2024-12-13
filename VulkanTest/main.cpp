@@ -190,6 +190,7 @@ private:
 	VkImage textureImage;
 	VkDeviceMemory textureImageMemory;
 	VkImageView textureImageView;
+	VkSampler textureSampler;
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 		VkDebugUtilsMessageSeverityFlagBitsEXT           messageSeverity,
@@ -242,6 +243,8 @@ private:
 		createFramebuffers();
 		createCommandPool();
 		createTextureImage();
+		createTextureImageView();
+		createTextureSampler();
 		createVertexBuffer();
 		createIndexBuffer();
 		createUniformBuffers();
@@ -251,6 +254,51 @@ private:
 		createSyncObjects();
 	}
 
+	void createTextureSampler()
+	{
+		VkSamplerCreateInfo samplerInfo{};
+		samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+		samplerInfo.magFilter = VK_FILTER_LINEAR;
+		samplerInfo.minFilter = VK_FILTER_LINEAR;
+		samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+
+		VkPhysicalDeviceProperties properties{};
+		vkGetPhysicalDeviceProperties(physicalDevice, &properties);
+
+		VkPhysicalDeviceFeatures supportedDeviceFeatures;
+		vkGetPhysicalDeviceFeatures(physicalDevice, &supportedDeviceFeatures);
+		if (supportedDeviceFeatures.samplerAnisotropy)
+		{
+			samplerInfo.anisotropyEnable = VK_TRUE;
+			samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+		} else
+		{
+			samplerInfo.anisotropyEnable = VK_FALSE;
+			samplerInfo.maxAnisotropy = 1.0f;
+		}
+		
+		samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+		samplerInfo.unnormalizedCoordinates = VK_FALSE;
+		samplerInfo.compareEnable = VK_FALSE;
+		samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+		samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		samplerInfo.mipLodBias = 0.0f;
+		samplerInfo.minLod = 0.0f;
+		samplerInfo.maxLod = 0.0f;
+
+		if (vkCreateSampler(device, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS)
+		{
+			throw std::runtime_error("Failed to create texture sampler");
+		}
+	}
+
+	void createTextureImageView()
+	{
+		textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB);
+	}
+	
 	void createTextureImage()
 	{
 		int width;
@@ -1009,28 +1057,36 @@ private:
 		return shaderModule;
 	}
 
+	VkImageView createImageView(VkImage image, VkFormat format)
+	{
+		VkImageViewCreateInfo createInfo{};
+		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		createInfo.image = image;
+		createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		createInfo.format = format;
+		createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		createInfo.subresourceRange.baseMipLevel = 0;
+		createInfo.subresourceRange.levelCount = 1;
+		createInfo.subresourceRange.baseArrayLayer = 0;
+		createInfo.subresourceRange.layerCount = 1;
+		/* createInfo.components = {
+			VK_COMPONENT_SWIZZLE_IDENTITY,
+			VK_COMPONENT_SWIZZLE_IDENTITY,
+			VK_COMPONENT_SWIZZLE_IDENTITY,
+			VK_COMPONENT_SWIZZLE_IDENTITY
+		}; */
+
+		VkImageView imageView;
+		if (vkCreateImageView(device, &createInfo, nullptr, &imageView) != VK_SUCCESS) {
+			throw std::runtime_error("Failed to create image views");
+		}
+		return imageView;
+	}
+
 	void createImageViews() {
 		swapchainImageViews.resize(swapchainImages.size());
 		for (size_t i = 0; i < swapchainImages.size(); ++i) {
-			VkImageViewCreateInfo createInfo{};
-			createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-			createInfo.image = swapchainImages[i];
-			createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-			createInfo.format = swapchainImageFormat;
-			createInfo.components = {
-				VK_COMPONENT_SWIZZLE_IDENTITY,
-				VK_COMPONENT_SWIZZLE_IDENTITY,
-				VK_COMPONENT_SWIZZLE_IDENTITY,
-				VK_COMPONENT_SWIZZLE_IDENTITY
-			};
-			createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-			createInfo.subresourceRange.baseMipLevel = 0;
-			createInfo.subresourceRange.levelCount = 1;
-			createInfo.subresourceRange.baseArrayLayer = 0;
-			createInfo.subresourceRange.layerCount = 1;
-			if (vkCreateImageView(device, &createInfo, nullptr, &swapchainImageViews[i]) != VK_SUCCESS) {
-				throw std::runtime_error("Failed to create image views");
-			}
+			swapchainImageViews[i] = createImageView(swapchainImages[i], swapchainImageFormat);
 		}
 	}
 
@@ -1044,7 +1100,7 @@ private:
 		// safe to go above the minimum in this case?
 		if (swapchainSupport.capabilities.maxImageCount <= 0 ||
 			imageCount < swapchainSupport.capabilities.maxImageCount) {
-			// TODO: understand why this is recommended / why driver takes time to aquire another image
+			// TODO: understand why this is recommended / why driver takes time to acquire another image
 			imageCount += 1;
 		}
 		VkSwapchainCreateInfoKHR createInfo{};
@@ -1127,7 +1183,8 @@ private:
 		}
 	}
 
-	void createLogicalDevice() {
+	void createLogicalDevice()
+	{
 		QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
 
 		std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
@@ -1142,12 +1199,18 @@ private:
 			queueCreateInfos.push_back(queueCreateInfo);
 		}
 
-		VkPhysicalDeviceFeatures deviceFeatures{};
+		VkPhysicalDeviceFeatures enabledDeviceFeatures{};
+		VkPhysicalDeviceFeatures supportedDeviceFeatures;
+		vkGetPhysicalDeviceFeatures(physicalDevice, &supportedDeviceFeatures);
+		if (supportedDeviceFeatures.samplerAnisotropy)
+		{
+			enabledDeviceFeatures.samplerAnisotropy = VK_TRUE;
+		}
 		VkDeviceCreateInfo createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 		createInfo.pQueueCreateInfos = queueCreateInfos.data();
 		createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
-		createInfo.pEnabledFeatures = &deviceFeatures;
+		createInfo.pEnabledFeatures = &enabledDeviceFeatures;
 		// This was set to 0 in the tutorial, but I needed it to include the device extensions
 		createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
 		createInfo.ppEnabledExtensionNames = deviceExtensions.data();
@@ -1363,6 +1426,8 @@ private:
 	void cleanup() {
 		cleanupSwapchain();
 
+		vkDestroySampler(device, textureSampler, nullptr);
+		vkDestroyImageView(device, textureImageView, nullptr);
 		vkDestroyImage(device, textureImage, nullptr);
 		vkFreeMemory(device, textureImageMemory, nullptr);
 
