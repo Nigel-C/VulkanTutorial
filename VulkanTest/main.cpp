@@ -1,11 +1,17 @@
-#define GLFW_INCLUDE_VULKAN
-#include "GLFW/glfw3.h"
-
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+
+#define TINYGLTF_NO_INCLUDE_STB_IMAGE
+#define TINYGLTF_NO_STB_IMAGE_WRITE
+#define TINYGLTF_USE_CPP14
+#define TINYGLTF_IMPLEMENTATION
+#include "tiny_gltf.h"
+
+#define GLFW_INCLUDE_VULKAN
+#include "GLFW/glfw3.h"
 
 #include <algorithm>
 #include <array>
