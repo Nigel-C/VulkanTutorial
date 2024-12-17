@@ -32,6 +32,10 @@ const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
+const char* MODEL_PATH = "models/suzanne.glb";
+const char* TEXTURE_PATH = "textures/texture.jpg";
+constexpr VkIndexType INDEX_TYPE = VK_INDEX_TYPE_UINT16;
+
 const std::vector<const char*> validationLayers = {
 	"VK_LAYER_KHRONOS_validation",
 };
@@ -143,27 +147,11 @@ struct Vertex
 	}
 };
 
-const std::vector<Vertex> vertices = {
-	{{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-	{{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-	{{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-	{{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
-
-{{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-{{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-{{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-{{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
-};
-
-const std::vector<uint16_t> indices = {
-	0, 1, 2, 2, 3, 0,
-	4, 5, 6, 6, 7, 4
-};
-
 class HelloTriangleApplication {
 public:
 	void run() {
 		initWindow();
+		initModels();
 		initVulkan();
 		mainLoop();
 		cleanup();
@@ -195,6 +183,10 @@ private:
 	std::vector<VkFence> inFlightFences;
 	uint32_t currentFrame = 0;
 	bool framebufferResized = false;
+	
+	std::vector<Vertex> vertices;
+	// Match to INDEX_TYPE
+	std::vector<uint16_t> indices;
 	VkBuffer vertexBuffer;
 	VkDeviceMemory vertexBufferMemory;
 	VkBuffer indexBuffer;
@@ -251,6 +243,63 @@ private:
 			drawFrame();
 			drawFrame();
 		}
+	}
+
+	void initModels()
+	{
+		tinygltf::Model model;
+		tinygltf::TinyGLTF loader;
+		std::string err;
+		std::string warn;
+
+		if (!loader.LoadBinaryFromFile(&model, &err, &warn, MODEL_PATH))
+		{
+			throw std::runtime_error("Failed to load model from file");
+		}
+		tinygltf::Mesh mesh = model.meshes.front();
+		
+		int positionAccessorIndex = mesh.primitives.front().attributes.at("POSITION");
+		size_t positionCount = model.accessors.at(positionAccessorIndex).count;
+		int positionBufferViewIndex = model.accessors.at(positionAccessorIndex).bufferView;
+		int positionBufferIndex = model.bufferViews.at(positionBufferViewIndex).buffer;
+		
+		int indicesAccessorIndex = mesh.primitives.front().indices;
+		size_t indexCount = model.accessors.at(indicesAccessorIndex).count;
+		int indicesBufferViewIndex = model.accessors.at(indicesAccessorIndex).bufferView;
+		int indicesBufferIndex = model.bufferViews.at(indicesBufferViewIndex).buffer;
+
+		int uvAccessorIndex = mesh.primitives.front().attributes.at("TEXCOORD_0");
+		size_t uvCount = model.accessors.at(uvAccessorIndex).count;
+		int uvBufferViewIndex = model.accessors.at(uvAccessorIndex).bufferView;
+		int uvBufferIndex = model.bufferViews.at(uvBufferViewIndex).buffer;
+
+		if (uvCount != positionCount)
+		{
+			throw std::runtime_error("UV count doesn't match position count");
+		}
+		
+		vertices.resize(positionCount);
+		for (size_t i = 0; i < positionCount; ++i)
+		{
+			// All these offsets and copies are very janky, need to check types, byteStride, etc.
+			memcpy(
+				&vertices[i].pos,
+				model.buffers[positionBufferIndex].data.data() +
+				model.bufferViews[positionBufferViewIndex].byteOffset + i * sizeof(glm::vec3),
+				sizeof(glm::vec3));
+			vertices[i].color = {1.0, 1.0, 1.0};
+			memcpy(
+				&vertices[i].texCoord,
+				model.buffers[uvBufferIndex].data.data() +
+				model.bufferViews[uvBufferViewIndex].byteOffset + i * sizeof(glm::vec2),
+				sizeof(glm::vec2));
+		}
+		
+		indices.resize(indexCount);
+		memcpy(
+			indices.data(),
+			model.buffers[indicesBufferIndex].data.data() + model.bufferViews[indicesBufferViewIndex].byteOffset,
+			model.bufferViews[indicesBufferViewIndex].byteLength);
 	}
 
 	void initVulkan() {
@@ -344,7 +393,7 @@ private:
 		int width;
 		int height;
 		int channels;
-		stbi_uc* pixels = stbi_load("textures/texture.jpg", &width, &height, &channels, STBI_rgb_alpha);
+		stbi_uc* pixels = stbi_load(TEXTURE_PATH, &width, &height, &channels, STBI_rgb_alpha);
 		VkDeviceSize imageSize = width * height * 4;
 
 		if (!pixels)
@@ -859,7 +908,7 @@ private:
 		VkDeviceSize offsets[] = {0};
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
-		vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+		vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, INDEX_TYPE);
 		
 		VkViewport viewport{};
 		viewport.x = 0.0f;
@@ -1460,8 +1509,8 @@ private:
 		auto currentTime = std::chrono::high_resolution_clock::now();
 		float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 		UniformBufferObject ubo{};
-		ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0, 0, 1));
-		ubo.view = glm::lookAt(glm::vec3(1,1,1) * 0.5f*(1.5f + glm::sin(time)), glm::vec3(0, 0, 0), glm::vec3(0, 0, 1));
+		ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(1, 0, 1));
+		ubo.view = glm::lookAt(glm::vec3(1,1,1) * 1.0f*(1.5f + glm::sin(time)), glm::vec3(0, 0, 0), glm::vec3(0, 0, 1));
 		ubo.proj = glm::perspective(
 			45.0f,
 			swapchainExtent.width / static_cast<float>(swapchainExtent.height),
