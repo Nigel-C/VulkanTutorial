@@ -32,8 +32,8 @@ const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
-const char* MODEL_PATH = "models/suzanneSmooth.glb";
-const char* TEXTURE_PATH = "textures/texture.jpg";
+const char* MODEL_PATH = "models/vikingRoom.glb";
+const char* TEXTURE_PATH = "textures/vikingRoom.png";
 constexpr VkIndexType INDEX_TYPE = VK_INDEX_TYPE_UINT16;
 
 const std::vector<const char*> validationLayers = {
@@ -1524,8 +1524,8 @@ private:
 		auto currentTime = std::chrono::high_resolution_clock::now();
 		float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 		UniformBufferObject ubo{};
-		ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(1, 0, 1));
-		ubo.view = glm::lookAt(glm::vec3(1,1,1) * 1.0f*(2.0f), glm::vec3(0, 0, 0), glm::vec3(0, 0, 1));
+		ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(-90.0f), glm::vec3(0, 0, 1));
+		ubo.view = glm::lookAt(glm::vec3(1,1,-1.5), glm::vec3(0, 0, 0), glm::vec3(0, 0, -1));
 		ubo.proj = glm::perspective(
 			45.0f,
 			swapchainExtent.width / static_cast<float>(swapchainExtent.height),
