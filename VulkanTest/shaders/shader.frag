@@ -8,10 +8,10 @@ layout(location = 2) in vec3 fragNormal;
 
 layout(location = 0) out vec4 outColor;
 
-#define VERTEX_REFLECTION
+#define TEXTURED
 
 void main() {
-	#ifdef PLAIN_TEXTURED
+	#ifdef TEXTURED
 	outColor = vec4(fragColor * texture(texSampler, fragTexCoord).rgb, 1.0);
 	#endif
 	

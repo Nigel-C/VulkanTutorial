@@ -1544,7 +1544,7 @@ private:
 			drawFrame();
 			auto currentTime = std::chrono::high_resolution_clock::now();
 			auto deltaTime = lastFrameTime - currentTime;
-			std::this_thread::sleep_for(std::chrono::microseconds(1'000'000/60) - deltaTime);
+			std::this_thread::sleep_for(std::chrono::microseconds(1'000'000/120) - deltaTime);
 		}
 
 		vkDeviceWaitIdle(device);
