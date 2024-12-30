@@ -140,8 +140,11 @@
   <ItemGroup>
     <Content Include="shaders\compile.bat" />
     <Content Include="shaders\frag.spv" />
+    <Content Include="shaders\shader.comp" />
     <Content Include="shaders\shader.frag" />
     <Content Include="shaders\shader.vert" />
+    <Content Include="shaders\shader2.frag" />
+    <Content Include="shaders\shader2.vert" />
     <Content Include="shaders\vert.spv" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
